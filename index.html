@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Flick Strike">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+  <title>Flick Strike</title>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- UI Overlay -->
+  <div id="ui-overlay">
+    <!-- HUD (in-game) -->
+    <div id="hud" class="hidden">
+      <div id="hud-top">
+        <div id="score-display">
+          <span class="label">SCORE</span>
+          <span id="score">0</span>
+        </div>
+        <div id="wave-display">
+          <span class="label">WAVE</span>
+          <span id="wave">1</span>
+        </div>
+        <div id="lives-display">
+          <span class="label">LIFE</span>
+          <div id="lives-hearts"></div>
+        </div>
+      </div>
+      <div id="combo-display" class="hidden">
+        <span id="combo-count">0</span>
+        <span class="label">COMBO</span>
+      </div>
+      <div id="wave-announce" class="hidden"></div>
+      <button id="pause-btn" aria-label="Pause">⏸</button>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="screen">
+      <div class="screen-content">
+        <h1 class="game-title">
+          <span class="title-flick">FLICK</span>
+          <span class="title-strike">STRIKE</span>
+        </h1>
+        <p class="subtitle">フリックで敵を撃退せよ！</p>
+        <div class="instructions">
+          <div class="inst-item">
+            <span class="inst-icon">👆</span>
+            <span>フリックで攻撃</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-icon">💥</span>
+            <span>敵を倒してコンボ！</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-icon">❤️</span>
+            <span>3回被弾でゲームオーバー</span>
+          </div>
+        </div>
+        <button id="start-btn" class="btn-primary">タップしてスタート</button>
+        <div id="best-score-display" class="hidden">
+          <span>ベスト: </span><span id="best-score">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="pause-screen" class="screen hidden">
+      <div class="screen-content">
+        <h2>PAUSE</h2>
+        <button id="resume-btn" class="btn-primary">再開</button>
+        <button id="quit-btn" class="btn-secondary">タイトルへ</button>
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameover-screen" class="screen hidden">
+      <div class="screen-content">
+        <h2 id="gameover-title">GAME OVER</h2>
+        <div class="result-stats">
+          <div class="stat-row">
+            <span>スコア</span>
+            <span id="final-score">0</span>
+          </div>
+          <div class="stat-row">
+            <span>ウェーブ</span>
+            <span id="final-wave">1</span>
+          </div>
+          <div class="stat-row">
+            <span>最大コンボ</span>
+            <span id="final-combo">0</span>
+          </div>
+          <div class="stat-row highlight" id="new-record-row" style="display:none">
+            <span>🏆 新記録！</span>
+            <span id="final-best">0</span>
+          </div>
+        </div>
+        <button id="retry-btn" class="btn-primary">もう一度</button>
+        <button id="title-btn" class="btn-secondary">タイトルへ</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/audio.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/enemy.js"></script>
+  <script src="js/flick.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
