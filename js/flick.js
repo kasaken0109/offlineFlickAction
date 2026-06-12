@@ -67,7 +67,6 @@ class FlickDetector {
       const dt = (performance.now() - data.startTime) / 1000;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Flick: minimum distance 30px, maximum time 0.5s
       if (dist > 30 && dt < 0.5) {
         const speed = Math.min(dist / dt / 80, 18);
         const angle = Math.atan2(dy, dx);
@@ -82,23 +81,30 @@ class FlickDetector {
 }
 
 class Projectile {
-  constructor(x, y, angle, speed, damage = 1) {
+  constructor(x, y, angle, speed, opts = {}) {
+    const { damage = 1, sizeBonus = 0, pierce = false } = opts;
     this.x = x;
     this.y = y;
-    this.startX = x;
-    this.startY = y;
     this.angle = angle;
     this.speed = speed * 380;
     this.vx = Math.cos(angle) * this.speed;
     this.vy = Math.sin(angle) * this.speed;
-    this.radius = 8 + damage * 2;
+    // Larger base size for better hit detection
+    this.radius = 14 + damage * 3 + sizeBonus;
     this.damage = damage;
+    this.pierce = pierce;
+    this.hitEnemies = pierce ? new Set() : null;
     this.dead = false;
     this.age = 0;
     this.maxAge = 1.2;
     this.trail = [];
-    this.color = damage > 1 ? '#ffd60a' : '#00d4ff';
-    this.glowColor = damage > 1 ? 'rgba(255,214,10,0.5)' : 'rgba(0,212,255,0.5)';
+    // Color by damage level
+    const colors = ['#00d4ff', '#ffd60a', '#bf5af2', '#ff2d55'];
+    this.color = colors[Math.min(damage - 1, colors.length - 1)];
+    const glows = ['rgba(0,212,255,0.5)', 'rgba(255,214,10,0.5)', 'rgba(191,90,242,0.5)', 'rgba(255,45,85,0.5)'];
+    this.glowColor = glows[Math.min(damage - 1, glows.length - 1)];
+    // Pierce gets a special indicator
+    if (pierce) { this.color = '#30d158'; this.glowColor = 'rgba(48,209,88,0.5)'; }
   }
 
   update(dt, cw, ch) {
@@ -135,11 +141,11 @@ class Projectile {
       ctx.restore();
     }
 
-    // Projectile
+    // Projectile body
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.shadowColor = this.glowColor;
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = 22;
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -149,7 +155,7 @@ class Projectile {
     ctx.fillStyle = '#ffffff';
     ctx.shadowBlur = 0;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.radius * 0.38, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -160,8 +166,8 @@ class ProjectileManager {
     this.projectiles = [];
   }
 
-  fire(x, y, angle, speedFactor, damage = 1) {
-    this.projectiles.push(new Projectile(x, y, angle, speedFactor, damage));
+  fire(x, y, angle, speedFactor, opts = {}) {
+    this.projectiles.push(new Projectile(x, y, angle, speedFactor, opts));
   }
 
   update(dt, cw, ch) {

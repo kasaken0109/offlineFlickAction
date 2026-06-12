@@ -7,7 +7,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Flick Strike">
-  <title>Flick Strike</title>
   <style>
 *, *::before, *::after {
   box-sizing: border-box;
@@ -350,6 +349,92 @@ html, body {
   text-shadow: 0 0 30px var(--primary);
 }
 
+/* ── Upgrade screen ── */
+.upgrade-wave-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.upgrade-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.08em;
+  margin: -8px 0 0;
+}
+
+.upgrade-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.upgrade-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  pointer-events: all;
+  text-align: left;
+  width: 100%;
+  transition: transform 0.12s, background 0.12s;
+  position: relative;
+  overflow: hidden;
+}
+
+.upgrade-card:active {
+  transform: scale(0.97);
+  background: rgba(255,255,255,0.1);
+}
+
+.upgrade-card.rarity-common  { border-color: rgba(255,255,255,0.2); }
+.upgrade-card.rarity-rare    { border-color: var(--primary); box-shadow: 0 0 16px rgba(0,212,255,0.2); }
+.upgrade-card.rarity-epic    { border-color: #bf5af2; box-shadow: 0 0 16px rgba(191,90,242,0.25); }
+
+.upgrade-icon {
+  font-size: 30px;
+  width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.upgrade-info { flex: 1; min-width: 0; }
+
+.upgrade-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 3px;
+}
+
+.upgrade-desc {
+  font-size: 12px;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.4;
+}
+
+.upgrade-rarity-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 3px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.upgrade-rarity-badge.rarity-common { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.5); }
+.upgrade-rarity-badge.rarity-rare   { background: rgba(0,212,255,0.15); color: var(--primary); }
+.upgrade-rarity-badge.rarity-epic   { background: rgba(191,90,242,0.2); color: #bf5af2; }
+
 /* utilities */
 .hidden { display: none !important; }
 
@@ -369,12 +454,15 @@ html, body {
   transition: none;
 }
 
-  </style>
+</style>
+  <title>Flick Strike</title>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
 
+  <!-- UI Overlay -->
   <div id="ui-overlay">
+    <!-- HUD (in-game) -->
     <div id="hud" class="hidden">
       <div id="hud-top">
         <div id="score-display">
@@ -395,73 +483,90 @@ html, body {
         <span class="label">COMBO</span>
       </div>
       <div id="wave-announce" class="hidden"></div>
-      <button id="pause-btn" aria-label="Pause">&#9208;</button>
+      <button id="pause-btn" aria-label="Pause">⏸</button>
     </div>
 
+    <!-- Start Screen -->
     <div id="start-screen" class="screen">
       <div class="screen-content">
         <h1 class="game-title">
           <span class="title-flick">FLICK</span>
           <span class="title-strike">STRIKE</span>
         </h1>
-        <p class="subtitle">&#12501;&#12522;&#12483;&#12463;&#12391;&#25935;&#12434;&#25731;&#36864;&#12379;&#12424;&#65281;</p>
+        <p class="subtitle">フリックで敵を撃退せよ！</p>
         <div class="instructions">
           <div class="inst-item">
-            <span class="inst-icon">&#128070;</span>
-            <span>&#12501;&#12522;&#12483;&#12463;&#12391;&#25915;&#25731;</span>
+            <span class="inst-icon">👆</span>
+            <span>フリックで攻撃</span>
           </div>
           <div class="inst-item">
-            <span class="inst-icon">&#128165;</span>
-            <span>&#25935;&#12434;&#20542;&#12375;&#12390;&#12467;&#12531;&#12508;&#65281;</span>
+            <span class="inst-icon">💥</span>
+            <span>敵を倒してコンボ！</span>
           </div>
           <div class="inst-item">
-            <span class="inst-icon">&#10084;&#65039;</span>
-            <span>3&#22238;&#34987;&#24386;&#12391;&#12466;&#12540;&#12512;&#12458;&#12540;&#12496;&#12540;</span>
+            <span class="inst-icon">❤️</span>
+            <span>3回被弾でゲームオーバー</span>
           </div>
         </div>
-        <button id="start-btn" class="btn-primary">&#12479;&#12483;&#12503;&#12375;&#12390;&#12473;&#12479;&#12540;&#12488;</button>
+        <button id="start-btn" class="btn-primary">タップしてスタート</button>
         <div id="best-score-display" class="hidden">
-          <span>&#12505;&#12473;&#12488;: </span><span id="best-score">0</span>
+          <span>ベスト: </span><span id="best-score">0</span>
         </div>
       </div>
     </div>
 
+    <!-- Pause Screen -->
     <div id="pause-screen" class="screen hidden">
       <div class="screen-content">
         <h2>PAUSE</h2>
-        <button id="resume-btn" class="btn-primary">&#20877;&#24320;</button>
-        <button id="quit-btn" class="btn-secondary">&#12479;&#12452;&#12488;&#12523;&#12408;</button>
+        <button id="resume-btn" class="btn-primary">再開</button>
+        <button id="quit-btn" class="btn-secondary">タイトルへ</button>
       </div>
     </div>
 
+    <!-- Upgrade Screen -->
+    <div id="upgrade-screen" class="screen hidden">
+      <div class="screen-content">
+        <p id="upgrade-wave-label" class="upgrade-wave-label">WAVE CLEAR!</p>
+        <h2 class="upgrade-title">強化を選択</h2>
+        <div id="upgrade-cards" class="upgrade-cards"></div>
+      </div>
+    </div>
+
+    <!-- Game Over Screen -->
     <div id="gameover-screen" class="screen hidden">
       <div class="screen-content">
         <h2 id="gameover-title">GAME OVER</h2>
         <div class="result-stats">
           <div class="stat-row">
-            <span>&#12473;&#12467;&#12450;</span>
+            <span>スコア</span>
             <span id="final-score">0</span>
           </div>
           <div class="stat-row">
-            <span>&#12454;&#12455;&#12540;&#12502;</span>
+            <span>ウェーブ</span>
             <span id="final-wave">1</span>
           </div>
           <div class="stat-row">
-            <span>&#26368;&#22823;&#12467;&#12531;&#12508;</span>
+            <span>最大コンボ</span>
             <span id="final-combo">0</span>
           </div>
           <div class="stat-row highlight" id="new-record-row" style="display:none">
-            <span>&#127942; &#26032;&#35352;&#37682;&#65281;</span>
+            <span>🏆 新記録！</span>
             <span id="final-best">0</span>
           </div>
         </div>
-        <button id="retry-btn" class="btn-primary">&#12418;&#12358;&#19968;&#24230;</button>
-        <button id="title-btn" class="btn-secondary">&#12479;&#12452;&#12488;&#12523;&#12408;</button>
+        <button id="retry-btn" class="btn-primary">もう一度</button>
+        <button id="title-btn" class="btn-secondary">タイトルへ</button>
       </div>
     </div>
   </div>
 
-  <script>
+  
+  
+  
+  
+  
+<script>
 // Web Audio API - synthetic sound effects (no files needed, works offline)
 const Audio = (() => {
   let ctx = null;
@@ -741,6 +846,8 @@ class Enemy {
     this.x = x;
     this.y = y;
     this.maxHp = def.hp;
+    // hitRadius is larger than visual radius for more forgiving hit detection
+    this.hitRadius = def.radius * 1.6;
     this.angle = Math.atan2(targetY - y, targetX - x);
     this.vx = Math.cos(this.angle) * this.speed;
     this.vy = Math.sin(this.angle) * this.speed;
@@ -948,11 +1055,17 @@ class EnemyManager {
       if (proj.dead) continue;
       for (const enemy of this.enemies) {
         if (enemy.dead) continue;
+        if (proj.hitEnemies && proj.hitEnemies.has(enemy)) continue;
         const dx = proj.x - enemy.x, dy = proj.y - enemy.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < proj.radius + enemy.radius) {
+        if (dist < proj.radius + enemy.hitRadius) {
           const killed = enemy.hit(proj.damage || 1);
-          proj.dead = true;
+
+          if (proj.pierce) {
+            proj.hitEnemies.add(enemy);
+          } else {
+            proj.dead = true;
+          }
 
           const hitAngle = Math.atan2(dy, dx);
           particles.emitHit(enemy.x, enemy.y, hitAngle, enemy.color);
@@ -963,7 +1076,7 @@ class EnemyManager {
           }
 
           hits.push({ enemy, killed, score: killed ? enemy.score : 0 });
-          break; // one projectile hits one enemy
+          if (!proj.pierce) break;
         }
       }
     }
@@ -1046,7 +1159,6 @@ class FlickDetector {
       const dt = (performance.now() - data.startTime) / 1000;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Flick: minimum distance 30px, maximum time 0.5s
       if (dist > 30 && dt < 0.5) {
         const speed = Math.min(dist / dt / 80, 18);
         const angle = Math.atan2(dy, dx);
@@ -1061,23 +1173,30 @@ class FlickDetector {
 }
 
 class Projectile {
-  constructor(x, y, angle, speed, damage = 1) {
+  constructor(x, y, angle, speed, opts = {}) {
+    const { damage = 1, sizeBonus = 0, pierce = false } = opts;
     this.x = x;
     this.y = y;
-    this.startX = x;
-    this.startY = y;
     this.angle = angle;
     this.speed = speed * 380;
     this.vx = Math.cos(angle) * this.speed;
     this.vy = Math.sin(angle) * this.speed;
-    this.radius = 8 + damage * 2;
+    // Larger base size for better hit detection
+    this.radius = 14 + damage * 3 + sizeBonus;
     this.damage = damage;
+    this.pierce = pierce;
+    this.hitEnemies = pierce ? new Set() : null;
     this.dead = false;
     this.age = 0;
     this.maxAge = 1.2;
     this.trail = [];
-    this.color = damage > 1 ? '#ffd60a' : '#00d4ff';
-    this.glowColor = damage > 1 ? 'rgba(255,214,10,0.5)' : 'rgba(0,212,255,0.5)';
+    // Color by damage level
+    const colors = ['#00d4ff', '#ffd60a', '#bf5af2', '#ff2d55'];
+    this.color = colors[Math.min(damage - 1, colors.length - 1)];
+    const glows = ['rgba(0,212,255,0.5)', 'rgba(255,214,10,0.5)', 'rgba(191,90,242,0.5)', 'rgba(255,45,85,0.5)'];
+    this.glowColor = glows[Math.min(damage - 1, glows.length - 1)];
+    // Pierce gets a special indicator
+    if (pierce) { this.color = '#30d158'; this.glowColor = 'rgba(48,209,88,0.5)'; }
   }
 
   update(dt, cw, ch) {
@@ -1114,11 +1233,11 @@ class Projectile {
       ctx.restore();
     }
 
-    // Projectile
+    // Projectile body
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.shadowColor = this.glowColor;
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = 22;
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -1128,7 +1247,7 @@ class Projectile {
     ctx.fillStyle = '#ffffff';
     ctx.shadowBlur = 0;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, this.radius * 0.38, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -1139,8 +1258,8 @@ class ProjectileManager {
     this.projectiles = [];
   }
 
-  fire(x, y, angle, speedFactor, damage = 1) {
-    this.projectiles.push(new Projectile(x, y, angle, speedFactor, damage));
+  fire(x, y, angle, speedFactor, opts = {}) {
+    this.projectiles.push(new Projectile(x, y, angle, speedFactor, opts));
   }
 
   update(dt, cw, ch) {
@@ -1162,7 +1281,65 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Game states
-const STATE = { MENU: 'menu', PLAYING: 'playing', PAUSED: 'paused', GAMEOVER: 'gameover' };
+const STATE = { MENU: 'menu', PLAYING: 'playing', PAUSED: 'paused', GAMEOVER: 'gameover', UPGRADING: 'upgrading' };
+
+// ── Upgrade pool ──
+const UPGRADE_POOL = [
+  {
+    id: 'damage', name: 'ダメージ+1', desc: '全ての弾のダメージが1増加する',
+    icon: '⚔️', rarity: 'rare',
+    apply: g => g.upgrades.damage++,
+    available: g => g.upgrades.damage < 5,
+  },
+  {
+    id: 'double_shot', name: 'ダブルショット', desc: 'フリックで2発同時に発射',
+    icon: '🔫', rarity: 'rare',
+    apply: g => g.upgrades.fireCount++,
+    available: g => g.upgrades.fireCount < 3,
+  },
+  {
+    id: 'triple_shot', name: 'トリプルショット', desc: '3発同時発射に強化',
+    icon: '🔥', rarity: 'epic',
+    apply: g => { g.upgrades.fireCount = 3; },
+    available: g => g.upgrades.fireCount < 3,
+  },
+  {
+    id: 'spread', name: 'スプレッドショット', desc: 'メイン弾の左右にも弾を追加発射',
+    icon: '🎯', rarity: 'epic',
+    apply: g => { g.upgrades.spread = true; },
+    available: g => !g.upgrades.spread,
+  },
+  {
+    id: 'pierce', name: '貫通弾', desc: '弾が敵を貫通して飛び続ける',
+    icon: '🏹', rarity: 'epic',
+    apply: g => { g.upgrades.pierce = true; },
+    available: g => !g.upgrades.pierce,
+  },
+  {
+    id: 'speed', name: '弾速アップ', desc: '弾の速度が大幅に上昇',
+    icon: '⚡', rarity: 'common',
+    apply: g => { g.upgrades.speedBonus = Math.min(g.upgrades.speedBonus + 0.4, 1.6); },
+    available: g => g.upgrades.speedBonus < 1.6,
+  },
+  {
+    id: 'big_shot', name: 'ビッグショット', desc: '弾が大きくなり当たりやすくなる',
+    icon: '💫', rarity: 'common',
+    apply: g => { g.upgrades.sizeBonus = Math.min(g.upgrades.sizeBonus + 8, 24); },
+    available: g => g.upgrades.sizeBonus < 24,
+  },
+  {
+    id: 'heal', name: 'ライフ回復', desc: 'ライフを1回復する',
+    icon: '💊', rarity: 'rare',
+    apply: g => { g.lives = Math.min(g.lives + 1, g.maxLives); updateHearts(); },
+    available: g => g.lives < g.maxLives,
+  },
+  {
+    id: 'shield', name: 'シールド付与', desc: '次の被弾を1回防ぐシールドを展開',
+    icon: '🛡️', rarity: 'common',
+    apply: g => { g.shieldActive = true; g.shieldTimer = 9999; },
+    available: g => !g.shieldActive,
+  },
+];
 
 // ── Game globals ──
 const game = {
@@ -1181,11 +1358,17 @@ const game = {
   waveTransition: false,
   frameTime: 0,
   lastTime: 0,
-  flickPower: 1,
-  powerups: [],
   bgStars: [],
   shieldActive: false,
   shieldTimer: 0,
+  upgrades: {
+    damage: 1,
+    fireCount: 1,
+    speedBonus: 0,
+    sizeBonus: 0,
+    spread: false,
+    pierce: false,
+  },
 };
 
 // ── Systems ──
@@ -1200,7 +1383,6 @@ const player = {
   radius: 26,
   pulse: 0,
   shieldRadius: 48,
-  hitFlash: 0,
 };
 
 // ── Canvas resize ──
@@ -1239,6 +1421,9 @@ const ui = {
   startScreen: document.getElementById('start-screen'),
   pauseScreen: document.getElementById('pause-screen'),
   gameoverScreen: document.getElementById('gameover-screen'),
+  upgradeScreen: document.getElementById('upgrade-screen'),
+  upgradeCards: document.getElementById('upgrade-cards'),
+  upgradeWaveLabel: document.getElementById('upgrade-wave-label'),
   finalScore: document.getElementById('final-score'),
   finalWave: document.getElementById('final-wave'),
   finalCombo: document.getElementById('final-combo'),
@@ -1280,7 +1465,7 @@ function showWaveAnnounce(text) {
 
 // ── Game state transitions ──
 function showScreen(name) {
-  [ui.startScreen, ui.pauseScreen, ui.gameoverScreen].forEach(s => s.classList.add('hidden'));
+  [ui.startScreen, ui.pauseScreen, ui.gameoverScreen, ui.upgradeScreen].forEach(s => s.classList.add('hidden'));
   ui.hud.classList.add('hidden');
   if (name === 'start') {
     ui.startScreen.classList.remove('hidden');
@@ -1295,6 +1480,9 @@ function showScreen(name) {
     ui.pauseScreen.classList.remove('hidden');
   } else if (name === 'gameover') {
     ui.gameoverScreen.classList.remove('hidden');
+  } else if (name === 'upgrade') {
+    ui.hud.classList.remove('hidden');
+    ui.upgradeScreen.classList.remove('hidden');
   }
 }
 
@@ -1310,8 +1498,9 @@ function startGame() {
   game.waveKills = 0;
   game.waveKillTarget = getWaveKillTarget(1);
   game.waveTransition = false;
-  game.powerups = [];
   game.shieldActive = false;
+  game.shieldTimer = 0;
+  game.upgrades = { damage: 1, fireCount: 1, speedBonus: 0, sizeBonus: 0, spread: false, pierce: false };
 
   player.x = canvas.width / 2;
   player.y = canvas.height / 2;
@@ -1350,20 +1539,15 @@ function takeDamage() {
   updateHearts();
   particles.emitDamage(player.x, player.y);
 
-  // Camera shake
   game.shakeTime = 0.3;
   game.shakeIntensity = 12;
 
-  // Damage flash
   damageFlash.classList.add('active');
   setTimeout(() => damageFlash.classList.remove('active'), 100);
 
-  // Haptic feedback
   if (navigator.vibrate) navigator.vibrate([30, 20, 50]);
 
-  if (game.lives <= 0) {
-    triggerGameOver();
-  }
+  if (game.lives <= 0) triggerGameOver();
 }
 
 function addScore(pts) {
@@ -1388,27 +1572,60 @@ function incrementCombo() {
   }
 }
 
+// ── Upgrade system ──
 function advanceWave() {
   game.wave++;
   game.waveKills = 0;
   game.waveKillTarget = getWaveKillTarget(game.wave);
-  enemies.setWave(game.wave);
   projectiles.projectiles = [];
-
   ui.waveEl.textContent = game.wave;
+
+  game.state = STATE.UPGRADING;
+  showUpgradeScreen();
+}
+
+function showUpgradeScreen() {
+  ui.upgradeWaveLabel.textContent = `WAVE ${game.wave - 1} CLEAR!`;
+
+  const available = UPGRADE_POOL.filter(u => !u.available || u.available(game));
+  // Pick 3 non-duplicate upgrades (weighted: epic rarer)
+  const shuffled = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
+
+  ui.upgradeCards.innerHTML = '';
+  for (const upg of shuffled) {
+    const btn = document.createElement('button');
+    btn.className = `upgrade-card rarity-${upg.rarity}`;
+    btn.innerHTML = `
+      <span class="upgrade-icon">${upg.icon}</span>
+      <div class="upgrade-info">
+        <div class="upgrade-name">${upg.name}</div>
+        <div class="upgrade-desc">${upg.desc}</div>
+      </div>
+      <span class="upgrade-rarity-badge rarity-${upg.rarity}">${
+        upg.rarity === 'epic' ? 'EPIC' : upg.rarity === 'rare' ? 'RARE' : 'COM'
+      }</span>
+    `;
+    btn.addEventListener('click', () => selectUpgrade(upg));
+    ui.upgradeCards.appendChild(btn);
+  }
+
+  showScreen('upgrade');
+}
+
+function selectUpgrade(upg) {
+  upg.apply(game);
+  Audio.unlock();
+  particles.emitRing(player.x, player.y, { color: '#ffd60a', maxRadius: 80, life: 0.5, lineWidth: 4 });
+  particles.emit(player.x, player.y, { count: 15, color: '#ffd60a', speed: 5, size: 5, life: 0.6 });
+
+  enemies.setWave(game.wave);
+  game.state = STATE.PLAYING;
+  showScreen('hud');
   showWaveAnnounce(`WAVE ${game.wave}${game.wave % 5 === 0 ? ' ⚠️ BOSS' : ''}`);
   Audio.waveStart(game.wave);
 
-  // Grant power-up every few waves
-  if (game.wave % 3 === 0) grantShield();
-}
-
-function grantShield() {
-  game.shieldActive = true;
-  game.shieldTimer = 8;
-  Audio.unlock();
-  particles.emitRing(player.x, player.y, { color: '#00d4ff', maxRadius: 60, life: 0.5, lineWidth: 3 });
-  particles.emitScore(player.x, player.y - 50, 'SHIELD!', '#00d4ff');
+  game.lastTime = performance.now();
+  requestAnimationFrame(loop);
 }
 
 function triggerGameOver() {
@@ -1434,11 +1651,30 @@ function triggerGameOver() {
 function handleFlick(angle, speed, startX, startY) {
   if (game.state !== STATE.PLAYING) return;
   Audio.flick();
-  projectiles.fire(player.x, player.y, angle, Math.min(speed, 15));
-  // Spawn trail at start point toward player
+
+  const spd = Math.min(speed, 15) + game.upgrades.speedBonus;
+  const opts = {
+    damage: game.upgrades.damage,
+    sizeBonus: game.upgrades.sizeBonus,
+    pierce: game.upgrades.pierce,
+  };
+
+  // Main shot(s)
+  for (let i = 0; i < game.upgrades.fireCount; i++) {
+    const offset = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * 0.12 * Math.ceil(i / 2);
+    projectiles.fire(player.x, player.y, angle + offset, spd, opts);
+  }
+
+  // Spread side shots (slightly weaker)
+  if (game.upgrades.spread) {
+    const sideOpts = { ...opts, damage: Math.max(1, opts.damage - 1) };
+    projectiles.fire(player.x, player.y, angle + 0.4, spd * 0.85, sideOpts);
+    projectiles.fire(player.x, player.y, angle - 0.4, spd * 0.85, sideOpts);
+  }
+
   particles.emitTrail(startX, startY, '#00d4ff', 5);
   particles.emit(player.x, player.y, {
-    count: 5,
+    count: 5 + game.upgrades.fireCount,
     color: '#00d4ff',
     speed: 4,
     spreadAngle: Math.PI * 0.4,
@@ -1465,7 +1701,6 @@ function drawBackground(dt) {
   ctx.fillStyle = '#0a0a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Animated stars
   for (const star of game.bgStars) {
     star.a += dt * star.speed;
     const alpha = (Math.sin(star.a) * 0.5 + 0.5) * 0.6 + 0.1;
@@ -1475,7 +1710,6 @@ function drawBackground(dt) {
     ctx.fill();
   }
 
-  // Radial glow from center
   const cx = canvas.width / 2, cy = canvas.height / 2;
   const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(canvas.width, canvas.height) * 0.5);
   grad.addColorStop(0, 'rgba(0,100,180,0.06)');
@@ -1483,7 +1717,6 @@ function drawBackground(dt) {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Danger rings when enemies are close
   const closest = getClosestEnemyDist();
   if (closest < 200) {
     const danger = 1 - closest / 200;
@@ -1504,6 +1737,65 @@ function getClosestEnemyDist() {
   return min;
 }
 
+// ── Proximity radar: always-visible enemy direction indicators ──
+function drawProximityRadar() {
+  const cx = player.x, cy = player.y;
+  const radarR = player.radius + 55; // ring just outside player glow
+  const w = canvas.width, h = canvas.height;
+  const margin = 26;
+
+  for (const e of enemies.enemies) {
+    const dx = e.x - cx, dy = e.y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx);
+
+    // ── Proximity dot on the radar ring (always visible) ──
+    const dotX = cx + Math.cos(angle) * radarR;
+    const dotY = cy + Math.sin(angle) * radarR;
+    const proximity = Math.max(0, 1 - dist / 320);
+    const dotAlpha = 0.3 + proximity * 0.65;
+    const dotSize = 3.5 + proximity * 4.5;
+
+    ctx.save();
+    ctx.globalAlpha = dotAlpha;
+    ctx.fillStyle = e.color;
+    ctx.shadowColor = e.color;
+    ctx.shadowBlur = dotSize * 2.5;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // ── Edge arrow for off-screen enemies ──
+    const halfW = w / 2 - margin, halfH = h / 2 - margin;
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+    if (absDx === 0 && absDy === 0) continue;
+    const scaleX = absDx > 0 ? halfW / absDx : Infinity;
+    const scaleY = absDy > 0 ? halfH / absDy : Infinity;
+    const edgeScale = Math.min(scaleX, scaleY);
+
+    if (edgeScale < 1) {
+      const ex = cx + dx * edgeScale;
+      const ey = cy + dy * edgeScale;
+      ctx.save();
+      ctx.translate(ex, ey);
+      ctx.rotate(angle);
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = e.color;
+      ctx.shadowColor = e.color;
+      ctx.shadowBlur = 12;
+      const s = 8;
+      ctx.beginPath();
+      ctx.moveTo(s + 2, 0);
+      ctx.lineTo(-s, -s * 0.65);
+      ctx.lineTo(-s, s * 0.65);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
 // ── Draw player ──
 function drawPlayer() {
   const { x, y, radius } = player;
@@ -1513,7 +1805,6 @@ function drawPlayer() {
   ctx.save();
   ctx.translate(x, y);
 
-  // Shield
   if (game.shieldActive) {
     const shieldAlpha = 0.3 + Math.sin(player.pulse * 3) * 0.2;
     ctx.strokeStyle = `rgba(0,212,255,${shieldAlpha})`;
@@ -1527,7 +1818,6 @@ function drawPlayer() {
     ctx.fill();
   }
 
-  // Outer glow ring
   ctx.strokeStyle = 'rgba(0,212,255,0.3)';
   ctx.lineWidth = 2;
   ctx.shadowColor = '#00d4ff';
@@ -1536,7 +1826,6 @@ function drawPlayer() {
   ctx.arc(0, 0, radius * scale * 1.4, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Main body
   const grad = ctx.createRadialGradient(-4, -4, 2, 0, 0, radius * scale);
   grad.addColorStop(0, '#80e8ff');
   grad.addColorStop(0.5, '#00d4ff');
@@ -1548,7 +1837,6 @@ function drawPlayer() {
   ctx.arc(0, 0, radius * scale, 0, Math.PI * 2);
   ctx.fill();
 
-  // Inner core
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
   ctx.shadowBlur = 10;
   ctx.beginPath();
@@ -1574,7 +1862,6 @@ function drawFlickHint() {
     ctx.stroke();
     ctx.restore();
 
-    // Touch start indicator
     ctx.save();
     ctx.globalAlpha = 0.4;
     ctx.strokeStyle = '#00d4ff';
@@ -1609,6 +1896,43 @@ function drawWaveProgress() {
   ctx.restore();
 }
 
+// ── Draw active upgrade icons ──
+function drawUpgradeIcons() {
+  const icons = [];
+  if (game.upgrades.damage > 1) icons.push({ icon: '⚔️', label: `×${game.upgrades.damage}` });
+  if (game.upgrades.fireCount > 1) icons.push({ icon: '🔫', label: `×${game.upgrades.fireCount}` });
+  if (game.upgrades.spread) icons.push({ icon: '🎯', label: '' });
+  if (game.upgrades.pierce) icons.push({ icon: '🏹', label: '' });
+  if (game.upgrades.speedBonus > 0) icons.push({ icon: '⚡', label: '' });
+  if (game.upgrades.sizeBonus > 0) icons.push({ icon: '💫', label: '' });
+  if (game.shieldActive) icons.push({ icon: '🛡️', label: '' });
+  if (!icons.length) return;
+
+  const iconSize = 18;
+  const gap = 4;
+  const totalW = icons.length * (iconSize + gap) - gap;
+  let x = canvas.width / 2 - totalW / 2;
+  const y = canvas.height - 28 - (window.visualViewport?.offsetTop || 0);
+
+  ctx.save();
+  ctx.font = `${iconSize}px sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  for (const item of icons) {
+    ctx.globalAlpha = 0.85;
+    ctx.fillText(item.icon, x, y);
+    if (item.label) {
+      ctx.globalAlpha = 0.9;
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillStyle = '#ffd60a';
+      ctx.fillText(item.label, x + iconSize - 2, y + 6);
+      ctx.font = `${iconSize}px sans-serif`;
+    }
+    x += iconSize + gap;
+  }
+  ctx.restore();
+}
+
 // ── Main game loop ──
 function loop(timestamp) {
   if (game.state !== STATE.PLAYING) return;
@@ -1619,17 +1943,17 @@ function loop(timestamp) {
   ctx.save();
   applyCameraShake(dt);
 
-  // Update
   update(dt);
 
-  // Draw
   drawBackground(dt);
   drawFlickHint();
   particles.draw(ctx);
   projectiles.draw(ctx);
   enemies.draw(ctx);
   drawPlayer();
+  drawProximityRadar();
   drawWaveProgress();
+  drawUpgradeIcons();
 
   ctx.restore();
 
@@ -1639,13 +1963,11 @@ function loop(timestamp) {
 }
 
 function update(dt) {
-  // Shield timer
-  if (game.shieldActive) {
+  if (game.shieldActive && game.shieldTimer < 9999) {
     game.shieldTimer -= dt;
     if (game.shieldTimer <= 0) game.shieldActive = false;
   }
 
-  // Combo timeout
   if (game.combo > 0) {
     game.comboTimer -= dt;
     if (game.comboTimer <= 0) {
@@ -1654,13 +1976,9 @@ function update(dt) {
     }
   }
 
-  // Particles
   particles.update(dt);
-
-  // Projectiles
   projectiles.update(dt, canvas.width, canvas.height);
 
-  // Check projectile-enemy hits
   const hits = enemies.checkProjectileHits(projectiles.active, particles);
   for (const hit of hits) {
     if (hit.killed) {
@@ -1674,19 +1992,15 @@ function update(dt) {
     }
   }
 
-  // Enemies reaching player
   const reached = enemies.update(dt, canvas.width, canvas.height, player.radius + (game.shieldActive ? player.shieldRadius - player.radius : 0));
-  if (reached.length > 0) {
-    takeDamage();
-  }
+  if (reached.length > 0) takeDamage();
 
-  // Wave progression
   if (!game.waveTransition && game.waveKills >= game.waveKillTarget) {
     game.waveTransition = true;
     setTimeout(() => {
       game.waveTransition = false;
       advanceWave();
-    }, 1000);
+    }, 800);
   }
 }
 
@@ -1712,19 +2026,17 @@ document.getElementById('pause-btn').addEventListener('click', () => {
 initStars();
 showScreen('start');
 
-// Register flick detector after DOM is ready
 window.addEventListener('load', () => {
   flickDetector = new FlickDetector(canvas);
   flickDetector.onFlick = handleFlick;
 });
 
-// ── Service Worker registration ──
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
 
-  </script>
+</script>
 </body>
 </html>

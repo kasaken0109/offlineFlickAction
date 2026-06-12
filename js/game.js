@@ -3,7 +3,65 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // Game states
-const STATE = { MENU: 'menu', PLAYING: 'playing', PAUSED: 'paused', GAMEOVER: 'gameover' };
+const STATE = { MENU: 'menu', PLAYING: 'playing', PAUSED: 'paused', GAMEOVER: 'gameover', UPGRADING: 'upgrading' };
+
+// ── Upgrade pool ──
+const UPGRADE_POOL = [
+  {
+    id: 'damage', name: 'ダメージ+1', desc: '全ての弾のダメージが1増加する',
+    icon: '⚔️', rarity: 'rare',
+    apply: g => g.upgrades.damage++,
+    available: g => g.upgrades.damage < 5,
+  },
+  {
+    id: 'double_shot', name: 'ダブルショット', desc: 'フリックで2発同時に発射',
+    icon: '🔫', rarity: 'rare',
+    apply: g => g.upgrades.fireCount++,
+    available: g => g.upgrades.fireCount < 3,
+  },
+  {
+    id: 'triple_shot', name: 'トリプルショット', desc: '3発同時発射に強化',
+    icon: '🔥', rarity: 'epic',
+    apply: g => { g.upgrades.fireCount = 3; },
+    available: g => g.upgrades.fireCount < 3,
+  },
+  {
+    id: 'spread', name: 'スプレッドショット', desc: 'メイン弾の左右にも弾を追加発射',
+    icon: '🎯', rarity: 'epic',
+    apply: g => { g.upgrades.spread = true; },
+    available: g => !g.upgrades.spread,
+  },
+  {
+    id: 'pierce', name: '貫通弾', desc: '弾が敵を貫通して飛び続ける',
+    icon: '🏹', rarity: 'epic',
+    apply: g => { g.upgrades.pierce = true; },
+    available: g => !g.upgrades.pierce,
+  },
+  {
+    id: 'speed', name: '弾速アップ', desc: '弾の速度が大幅に上昇',
+    icon: '⚡', rarity: 'common',
+    apply: g => { g.upgrades.speedBonus = Math.min(g.upgrades.speedBonus + 0.4, 1.6); },
+    available: g => g.upgrades.speedBonus < 1.6,
+  },
+  {
+    id: 'big_shot', name: 'ビッグショット', desc: '弾が大きくなり当たりやすくなる',
+    icon: '💫', rarity: 'common',
+    apply: g => { g.upgrades.sizeBonus = Math.min(g.upgrades.sizeBonus + 8, 24); },
+    available: g => g.upgrades.sizeBonus < 24,
+  },
+  {
+    id: 'heal', name: 'ライフ回復', desc: 'ライフを1回復する',
+    icon: '💊', rarity: 'rare',
+    apply: g => { g.lives = Math.min(g.lives + 1, g.maxLives); updateHearts(); },
+    available: g => g.lives < g.maxLives,
+  },
+  {
+    id: 'shield', name: 'シールド付与', desc: '次の被弾を1回防ぐシールドを展開',
+    icon: '🛡️', rarity: 'common',
+    apply: g => { g.shieldActive = true; g.shieldTimer = 9999; },
+    available: g => !g.shieldActive,
+  },
+];
 
 // ── Game globals ──
 const game = {
@@ -22,11 +80,17 @@ const game = {
   waveTransition: false,
   frameTime: 0,
   lastTime: 0,
-  flickPower: 1,
-  powerups: [],
   bgStars: [],
   shieldActive: false,
   shieldTimer: 0,
+  upgrades: {
+    damage: 1,
+    fireCount: 1,
+    speedBonus: 0,
+    sizeBonus: 0,
+    spread: false,
+    pierce: false,
+  },
 };
 
 // ── Systems ──
@@ -41,7 +105,6 @@ const player = {
   radius: 26,
   pulse: 0,
   shieldRadius: 48,
-  hitFlash: 0,
 };
 
 // ── Canvas resize ──
@@ -80,6 +143,9 @@ const ui = {
   startScreen: document.getElementById('start-screen'),
   pauseScreen: document.getElementById('pause-screen'),
   gameoverScreen: document.getElementById('gameover-screen'),
+  upgradeScreen: document.getElementById('upgrade-screen'),
+  upgradeCards: document.getElementById('upgrade-cards'),
+  upgradeWaveLabel: document.getElementById('upgrade-wave-label'),
   finalScore: document.getElementById('final-score'),
   finalWave: document.getElementById('final-wave'),
   finalCombo: document.getElementById('final-combo'),
@@ -121,7 +187,7 @@ function showWaveAnnounce(text) {
 
 // ── Game state transitions ──
 function showScreen(name) {
-  [ui.startScreen, ui.pauseScreen, ui.gameoverScreen].forEach(s => s.classList.add('hidden'));
+  [ui.startScreen, ui.pauseScreen, ui.gameoverScreen, ui.upgradeScreen].forEach(s => s.classList.add('hidden'));
   ui.hud.classList.add('hidden');
   if (name === 'start') {
     ui.startScreen.classList.remove('hidden');
@@ -136,6 +202,9 @@ function showScreen(name) {
     ui.pauseScreen.classList.remove('hidden');
   } else if (name === 'gameover') {
     ui.gameoverScreen.classList.remove('hidden');
+  } else if (name === 'upgrade') {
+    ui.hud.classList.remove('hidden');
+    ui.upgradeScreen.classList.remove('hidden');
   }
 }
 
@@ -151,8 +220,9 @@ function startGame() {
   game.waveKills = 0;
   game.waveKillTarget = getWaveKillTarget(1);
   game.waveTransition = false;
-  game.powerups = [];
   game.shieldActive = false;
+  game.shieldTimer = 0;
+  game.upgrades = { damage: 1, fireCount: 1, speedBonus: 0, sizeBonus: 0, spread: false, pierce: false };
 
   player.x = canvas.width / 2;
   player.y = canvas.height / 2;
@@ -191,20 +261,15 @@ function takeDamage() {
   updateHearts();
   particles.emitDamage(player.x, player.y);
 
-  // Camera shake
   game.shakeTime = 0.3;
   game.shakeIntensity = 12;
 
-  // Damage flash
   damageFlash.classList.add('active');
   setTimeout(() => damageFlash.classList.remove('active'), 100);
 
-  // Haptic feedback
   if (navigator.vibrate) navigator.vibrate([30, 20, 50]);
 
-  if (game.lives <= 0) {
-    triggerGameOver();
-  }
+  if (game.lives <= 0) triggerGameOver();
 }
 
 function addScore(pts) {
@@ -229,27 +294,60 @@ function incrementCombo() {
   }
 }
 
+// ── Upgrade system ──
 function advanceWave() {
   game.wave++;
   game.waveKills = 0;
   game.waveKillTarget = getWaveKillTarget(game.wave);
-  enemies.setWave(game.wave);
   projectiles.projectiles = [];
-
   ui.waveEl.textContent = game.wave;
+
+  game.state = STATE.UPGRADING;
+  showUpgradeScreen();
+}
+
+function showUpgradeScreen() {
+  ui.upgradeWaveLabel.textContent = `WAVE ${game.wave - 1} CLEAR!`;
+
+  const available = UPGRADE_POOL.filter(u => !u.available || u.available(game));
+  // Pick 3 non-duplicate upgrades (weighted: epic rarer)
+  const shuffled = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
+
+  ui.upgradeCards.innerHTML = '';
+  for (const upg of shuffled) {
+    const btn = document.createElement('button');
+    btn.className = `upgrade-card rarity-${upg.rarity}`;
+    btn.innerHTML = `
+      <span class="upgrade-icon">${upg.icon}</span>
+      <div class="upgrade-info">
+        <div class="upgrade-name">${upg.name}</div>
+        <div class="upgrade-desc">${upg.desc}</div>
+      </div>
+      <span class="upgrade-rarity-badge rarity-${upg.rarity}">${
+        upg.rarity === 'epic' ? 'EPIC' : upg.rarity === 'rare' ? 'RARE' : 'COM'
+      }</span>
+    `;
+    btn.addEventListener('click', () => selectUpgrade(upg));
+    ui.upgradeCards.appendChild(btn);
+  }
+
+  showScreen('upgrade');
+}
+
+function selectUpgrade(upg) {
+  upg.apply(game);
+  Audio.unlock();
+  particles.emitRing(player.x, player.y, { color: '#ffd60a', maxRadius: 80, life: 0.5, lineWidth: 4 });
+  particles.emit(player.x, player.y, { count: 15, color: '#ffd60a', speed: 5, size: 5, life: 0.6 });
+
+  enemies.setWave(game.wave);
+  game.state = STATE.PLAYING;
+  showScreen('hud');
   showWaveAnnounce(`WAVE ${game.wave}${game.wave % 5 === 0 ? ' ⚠️ BOSS' : ''}`);
   Audio.waveStart(game.wave);
 
-  // Grant power-up every few waves
-  if (game.wave % 3 === 0) grantShield();
-}
-
-function grantShield() {
-  game.shieldActive = true;
-  game.shieldTimer = 8;
-  Audio.unlock();
-  particles.emitRing(player.x, player.y, { color: '#00d4ff', maxRadius: 60, life: 0.5, lineWidth: 3 });
-  particles.emitScore(player.x, player.y - 50, 'SHIELD!', '#00d4ff');
+  game.lastTime = performance.now();
+  requestAnimationFrame(loop);
 }
 
 function triggerGameOver() {
@@ -275,11 +373,30 @@ function triggerGameOver() {
 function handleFlick(angle, speed, startX, startY) {
   if (game.state !== STATE.PLAYING) return;
   Audio.flick();
-  projectiles.fire(player.x, player.y, angle, Math.min(speed, 15));
-  // Spawn trail at start point toward player
+
+  const spd = Math.min(speed, 15) + game.upgrades.speedBonus;
+  const opts = {
+    damage: game.upgrades.damage,
+    sizeBonus: game.upgrades.sizeBonus,
+    pierce: game.upgrades.pierce,
+  };
+
+  // Main shot(s)
+  for (let i = 0; i < game.upgrades.fireCount; i++) {
+    const offset = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * 0.12 * Math.ceil(i / 2);
+    projectiles.fire(player.x, player.y, angle + offset, spd, opts);
+  }
+
+  // Spread side shots (slightly weaker)
+  if (game.upgrades.spread) {
+    const sideOpts = { ...opts, damage: Math.max(1, opts.damage - 1) };
+    projectiles.fire(player.x, player.y, angle + 0.4, spd * 0.85, sideOpts);
+    projectiles.fire(player.x, player.y, angle - 0.4, spd * 0.85, sideOpts);
+  }
+
   particles.emitTrail(startX, startY, '#00d4ff', 5);
   particles.emit(player.x, player.y, {
-    count: 5,
+    count: 5 + game.upgrades.fireCount,
     color: '#00d4ff',
     speed: 4,
     spreadAngle: Math.PI * 0.4,
@@ -306,7 +423,6 @@ function drawBackground(dt) {
   ctx.fillStyle = '#0a0a1a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Animated stars
   for (const star of game.bgStars) {
     star.a += dt * star.speed;
     const alpha = (Math.sin(star.a) * 0.5 + 0.5) * 0.6 + 0.1;
@@ -316,7 +432,6 @@ function drawBackground(dt) {
     ctx.fill();
   }
 
-  // Radial glow from center
   const cx = canvas.width / 2, cy = canvas.height / 2;
   const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(canvas.width, canvas.height) * 0.5);
   grad.addColorStop(0, 'rgba(0,100,180,0.06)');
@@ -324,7 +439,6 @@ function drawBackground(dt) {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Danger rings when enemies are close
   const closest = getClosestEnemyDist();
   if (closest < 200) {
     const danger = 1 - closest / 200;
@@ -345,6 +459,65 @@ function getClosestEnemyDist() {
   return min;
 }
 
+// ── Proximity radar: always-visible enemy direction indicators ──
+function drawProximityRadar() {
+  const cx = player.x, cy = player.y;
+  const radarR = player.radius + 55; // ring just outside player glow
+  const w = canvas.width, h = canvas.height;
+  const margin = 26;
+
+  for (const e of enemies.enemies) {
+    const dx = e.x - cx, dy = e.y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx);
+
+    // ── Proximity dot on the radar ring (always visible) ──
+    const dotX = cx + Math.cos(angle) * radarR;
+    const dotY = cy + Math.sin(angle) * radarR;
+    const proximity = Math.max(0, 1 - dist / 320);
+    const dotAlpha = 0.3 + proximity * 0.65;
+    const dotSize = 3.5 + proximity * 4.5;
+
+    ctx.save();
+    ctx.globalAlpha = dotAlpha;
+    ctx.fillStyle = e.color;
+    ctx.shadowColor = e.color;
+    ctx.shadowBlur = dotSize * 2.5;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // ── Edge arrow for off-screen enemies ──
+    const halfW = w / 2 - margin, halfH = h / 2 - margin;
+    const absDx = Math.abs(dx), absDy = Math.abs(dy);
+    if (absDx === 0 && absDy === 0) continue;
+    const scaleX = absDx > 0 ? halfW / absDx : Infinity;
+    const scaleY = absDy > 0 ? halfH / absDy : Infinity;
+    const edgeScale = Math.min(scaleX, scaleY);
+
+    if (edgeScale < 1) {
+      const ex = cx + dx * edgeScale;
+      const ey = cy + dy * edgeScale;
+      ctx.save();
+      ctx.translate(ex, ey);
+      ctx.rotate(angle);
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = e.color;
+      ctx.shadowColor = e.color;
+      ctx.shadowBlur = 12;
+      const s = 8;
+      ctx.beginPath();
+      ctx.moveTo(s + 2, 0);
+      ctx.lineTo(-s, -s * 0.65);
+      ctx.lineTo(-s, s * 0.65);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
 // ── Draw player ──
 function drawPlayer() {
   const { x, y, radius } = player;
@@ -354,7 +527,6 @@ function drawPlayer() {
   ctx.save();
   ctx.translate(x, y);
 
-  // Shield
   if (game.shieldActive) {
     const shieldAlpha = 0.3 + Math.sin(player.pulse * 3) * 0.2;
     ctx.strokeStyle = `rgba(0,212,255,${shieldAlpha})`;
@@ -368,7 +540,6 @@ function drawPlayer() {
     ctx.fill();
   }
 
-  // Outer glow ring
   ctx.strokeStyle = 'rgba(0,212,255,0.3)';
   ctx.lineWidth = 2;
   ctx.shadowColor = '#00d4ff';
@@ -377,7 +548,6 @@ function drawPlayer() {
   ctx.arc(0, 0, radius * scale * 1.4, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Main body
   const grad = ctx.createRadialGradient(-4, -4, 2, 0, 0, radius * scale);
   grad.addColorStop(0, '#80e8ff');
   grad.addColorStop(0.5, '#00d4ff');
@@ -389,7 +559,6 @@ function drawPlayer() {
   ctx.arc(0, 0, radius * scale, 0, Math.PI * 2);
   ctx.fill();
 
-  // Inner core
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
   ctx.shadowBlur = 10;
   ctx.beginPath();
@@ -415,7 +584,6 @@ function drawFlickHint() {
     ctx.stroke();
     ctx.restore();
 
-    // Touch start indicator
     ctx.save();
     ctx.globalAlpha = 0.4;
     ctx.strokeStyle = '#00d4ff';
@@ -450,6 +618,43 @@ function drawWaveProgress() {
   ctx.restore();
 }
 
+// ── Draw active upgrade icons ──
+function drawUpgradeIcons() {
+  const icons = [];
+  if (game.upgrades.damage > 1) icons.push({ icon: '⚔️', label: `×${game.upgrades.damage}` });
+  if (game.upgrades.fireCount > 1) icons.push({ icon: '🔫', label: `×${game.upgrades.fireCount}` });
+  if (game.upgrades.spread) icons.push({ icon: '🎯', label: '' });
+  if (game.upgrades.pierce) icons.push({ icon: '🏹', label: '' });
+  if (game.upgrades.speedBonus > 0) icons.push({ icon: '⚡', label: '' });
+  if (game.upgrades.sizeBonus > 0) icons.push({ icon: '💫', label: '' });
+  if (game.shieldActive) icons.push({ icon: '🛡️', label: '' });
+  if (!icons.length) return;
+
+  const iconSize = 18;
+  const gap = 4;
+  const totalW = icons.length * (iconSize + gap) - gap;
+  let x = canvas.width / 2 - totalW / 2;
+  const y = canvas.height - 28 - (window.visualViewport?.offsetTop || 0);
+
+  ctx.save();
+  ctx.font = `${iconSize}px sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  for (const item of icons) {
+    ctx.globalAlpha = 0.85;
+    ctx.fillText(item.icon, x, y);
+    if (item.label) {
+      ctx.globalAlpha = 0.9;
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillStyle = '#ffd60a';
+      ctx.fillText(item.label, x + iconSize - 2, y + 6);
+      ctx.font = `${iconSize}px sans-serif`;
+    }
+    x += iconSize + gap;
+  }
+  ctx.restore();
+}
+
 // ── Main game loop ──
 function loop(timestamp) {
   if (game.state !== STATE.PLAYING) return;
@@ -460,17 +665,17 @@ function loop(timestamp) {
   ctx.save();
   applyCameraShake(dt);
 
-  // Update
   update(dt);
 
-  // Draw
   drawBackground(dt);
   drawFlickHint();
   particles.draw(ctx);
   projectiles.draw(ctx);
   enemies.draw(ctx);
   drawPlayer();
+  drawProximityRadar();
   drawWaveProgress();
+  drawUpgradeIcons();
 
   ctx.restore();
 
@@ -480,13 +685,11 @@ function loop(timestamp) {
 }
 
 function update(dt) {
-  // Shield timer
-  if (game.shieldActive) {
+  if (game.shieldActive && game.shieldTimer < 9999) {
     game.shieldTimer -= dt;
     if (game.shieldTimer <= 0) game.shieldActive = false;
   }
 
-  // Combo timeout
   if (game.combo > 0) {
     game.comboTimer -= dt;
     if (game.comboTimer <= 0) {
@@ -495,13 +698,9 @@ function update(dt) {
     }
   }
 
-  // Particles
   particles.update(dt);
-
-  // Projectiles
   projectiles.update(dt, canvas.width, canvas.height);
 
-  // Check projectile-enemy hits
   const hits = enemies.checkProjectileHits(projectiles.active, particles);
   for (const hit of hits) {
     if (hit.killed) {
@@ -515,19 +714,15 @@ function update(dt) {
     }
   }
 
-  // Enemies reaching player
   const reached = enemies.update(dt, canvas.width, canvas.height, player.radius + (game.shieldActive ? player.shieldRadius - player.radius : 0));
-  if (reached.length > 0) {
-    takeDamage();
-  }
+  if (reached.length > 0) takeDamage();
 
-  // Wave progression
   if (!game.waveTransition && game.waveKills >= game.waveKillTarget) {
     game.waveTransition = true;
     setTimeout(() => {
       game.waveTransition = false;
       advanceWave();
-    }, 1000);
+    }, 800);
   }
 }
 
@@ -553,13 +748,11 @@ document.getElementById('pause-btn').addEventListener('click', () => {
 initStars();
 showScreen('start');
 
-// Register flick detector after DOM is ready
 window.addEventListener('load', () => {
   flickDetector = new FlickDetector(canvas);
   flickDetector.onFlick = handleFlick;
 });
 
-// ── Service Worker registration ──
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});

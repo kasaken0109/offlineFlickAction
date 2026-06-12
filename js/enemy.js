@@ -55,6 +55,8 @@ class Enemy {
     this.x = x;
     this.y = y;
     this.maxHp = def.hp;
+    // hitRadius is larger than visual radius for more forgiving hit detection
+    this.hitRadius = def.radius * 1.6;
     this.angle = Math.atan2(targetY - y, targetX - x);
     this.vx = Math.cos(this.angle) * this.speed;
     this.vy = Math.sin(this.angle) * this.speed;
@@ -262,11 +264,17 @@ class EnemyManager {
       if (proj.dead) continue;
       for (const enemy of this.enemies) {
         if (enemy.dead) continue;
+        if (proj.hitEnemies && proj.hitEnemies.has(enemy)) continue;
         const dx = proj.x - enemy.x, dy = proj.y - enemy.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < proj.radius + enemy.radius) {
+        if (dist < proj.radius + enemy.hitRadius) {
           const killed = enemy.hit(proj.damage || 1);
-          proj.dead = true;
+
+          if (proj.pierce) {
+            proj.hitEnemies.add(enemy);
+          } else {
+            proj.dead = true;
+          }
 
           const hitAngle = Math.atan2(dy, dx);
           particles.emitHit(enemy.x, enemy.y, hitAngle, enemy.color);
@@ -277,7 +285,7 @@ class EnemyManager {
           }
 
           hits.push({ enemy, killed, score: killed ? enemy.score : 0 });
-          break; // one projectile hits one enemy
+          if (!proj.pierce) break;
         }
       }
     }
