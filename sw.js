@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flickstrike-v1';
+const CACHE_NAME = 'flickstrike-v2';
 const ASSETS = [
   './',
   './index.html',
