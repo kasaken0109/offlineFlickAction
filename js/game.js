@@ -6,61 +6,65 @@ const ctx = canvas.getContext('2d');
 const STATE = { MENU: 'menu', PLAYING: 'playing', PAUSED: 'paused', GAMEOVER: 'gameover', UPGRADING: 'upgrading' };
 
 // ── Upgrade pool ──
+// always:true のものは限定アップグレードが足りない時のフォールバック
 const UPGRADE_POOL = [
-  {
-    id: 'damage', name: 'ダメージ+1', desc: '全ての弾のダメージが1増加する',
-    icon: '⚔️', rarity: 'rare',
+  // ── 弾数・連射 ──
+  { id:'damage',      name:'ダメージ+1',     desc:'全ての弾のダメージが1増加', icon:'⚔️', rarity:'rare',
     apply: g => g.upgrades.damage++,
-    available: g => g.upgrades.damage < 5,
-  },
-  {
-    id: 'double_shot', name: 'ダブルショット', desc: 'フリックで2発同時に発射',
-    icon: '🔫', rarity: 'rare',
+    available: g => g.upgrades.damage < 6 },
+  { id:'double_shot', name:'ダブルショット', desc:'フリックで2発同時に発射', icon:'🔫', rarity:'rare',
     apply: g => g.upgrades.fireCount++,
-    available: g => g.upgrades.fireCount < 3,
-  },
-  {
-    id: 'triple_shot', name: 'トリプルショット', desc: '3発同時発射に強化',
-    icon: '🔥', rarity: 'epic',
+    available: g => g.upgrades.fireCount < 3 },
+  { id:'triple_shot', name:'トリプルショット', desc:'一気に3発同時発射に強化', icon:'🔥', rarity:'epic',
     apply: g => { g.upgrades.fireCount = 3; },
-    available: g => g.upgrades.fireCount < 3,
-  },
-  {
-    id: 'spread', name: 'スプレッドショット', desc: 'メイン弾の左右にも弾を追加発射',
-    icon: '🎯', rarity: 'epic',
+    available: g => g.upgrades.fireCount < 3 },
+
+  // ── 弾の特殊効果 ──
+  { id:'spread',    name:'スプレッドショット', desc:'メイン弾の左右にも弾を追加発射', icon:'🎯', rarity:'epic',
     apply: g => { g.upgrades.spread = true; },
-    available: g => !g.upgrades.spread,
-  },
-  {
-    id: 'pierce', name: '貫通弾', desc: '弾が敵を貫通して飛び続ける',
-    icon: '🏹', rarity: 'epic',
+    available: g => !g.upgrades.spread },
+  { id:'pierce',    name:'貫通弾',   desc:'弾が敵を貫通して飛び続ける',         icon:'🏹', rarity:'epic',
     apply: g => { g.upgrades.pierce = true; },
-    available: g => !g.upgrades.pierce,
-  },
-  {
-    id: 'speed', name: '弾速アップ', desc: '弾の速度が大幅に上昇',
-    icon: '⚡', rarity: 'common',
-    apply: g => { g.upgrades.speedBonus = Math.min(g.upgrades.speedBonus + 0.4, 1.6); },
-    available: g => g.upgrades.speedBonus < 1.6,
-  },
-  {
-    id: 'big_shot', name: 'ビッグショット', desc: '弾が大きくなり当たりやすくなる',
-    icon: '💫', rarity: 'common',
-    apply: g => { g.upgrades.sizeBonus = Math.min(g.upgrades.sizeBonus + 8, 24); },
-    available: g => g.upgrades.sizeBonus < 24,
-  },
-  {
-    id: 'heal', name: 'ライフ回復', desc: 'ライフを1回復する',
-    icon: '💊', rarity: 'rare',
+    available: g => !g.upgrades.pierce },
+  { id:'homing',    name:'ホーミング弾', desc:'弾が自動で最寄りの敵に向かう',    icon:'🎪', rarity:'epic',
+    apply: g => { g.upgrades.homing = true; },
+    available: g => !g.upgrades.homing },
+  { id:'explosive', name:'爆発弾',   desc:'着弾時に周囲90px内の敵にも1ダメージ', icon:'💥', rarity:'epic',
+    apply: g => { g.upgrades.explosive = true; },
+    available: g => !g.upgrades.explosive },
+  { id:'split',     name:'分裂弾',   desc:'敵を倒すと2発の弾に分裂する',        icon:'✂️', rarity:'rare',
+    apply: g => { g.upgrades.split = true; },
+    available: g => !g.upgrades.split },
+
+  // ── 弾のサイズ・速度 ──
+  { id:'speed',     name:'弾速アップ',  desc:'弾の速度が大幅に上昇', icon:'⚡', rarity:'common',
+    apply: g => { g.upgrades.speedBonus = Math.min(g.upgrades.speedBonus + 0.4, 2.0); },
+    available: g => g.upgrades.speedBonus < 2.0 },
+  { id:'big_shot',  name:'ビッグショット', desc:'弾が大きくなり当たりやすくなる', icon:'💫', rarity:'common',
+    apply: g => { g.upgrades.sizeBonus = Math.min(g.upgrades.sizeBonus + 8, 32); },
+    available: g => g.upgrades.sizeBonus < 32 },
+
+  // ── 生存・防御 ──
+  { id:'heal',      name:'ライフ回復', desc:'ライフを1回復する',               icon:'💊', rarity:'rare',
     apply: g => { g.lives = Math.min(g.lives + 1, g.maxLives); updateHearts(); },
-    available: g => g.lives < g.maxLives,
-  },
-  {
-    id: 'shield', name: 'シールド付与', desc: '次の被弾を1回防ぐシールドを展開',
-    icon: '🛡️', rarity: 'common',
+    available: g => g.lives < g.maxLives },
+  { id:'max_life',  name:'ライフ上限UP', desc:'最大ライフが1増加して全回復',    icon:'❤️', rarity:'epic',
+    apply: g => { g.maxLives++; g.lives = g.maxLives; updateHearts(); },
+    available: g => g.maxLives < 6 },
+  { id:'shield',    name:'シールド付与', desc:'次の被弾を1回防ぐシールドを展開', icon:'🛡️', rarity:'common',
     apply: g => { g.shieldActive = true; g.shieldTimer = 9999; },
-    available: g => !g.shieldActive,
-  },
+    available: g => !g.shieldActive },
+
+  // ── 常時フォールバック（限定が3つ未満の時に補填） ──
+  { id:'score_boost', name:'スコアブースト', desc:'即座にWAVE×500点を獲得', icon:'⭐', rarity:'common',
+    always: true, available: () => true,
+    apply: g => { g.score += 500 * g.wave; } },
+  { id:'combo_boost', name:'コンボ強化', desc:'コンボ倍率ボーナスが0.5x増加', icon:'🔗', rarity:'rare',
+    always: true, available: () => true,
+    apply: g => { g.upgrades.comboMult += 0.5; } },
+  { id:'speed_stack', name:'弾速微UP', desc:'弾速がわずかに上昇（スタック可）', icon:'💨', rarity:'common',
+    always: true, available: () => true,
+    apply: g => { g.upgrades.speedBonus += 0.2; } },
 ];
 
 // ── Game globals ──
@@ -90,6 +94,10 @@ const game = {
     sizeBonus: 0,
     spread: false,
     pierce: false,
+    homing: false,
+    explosive: false,
+    split: false,
+    comboMult: 1,
   },
 };
 
@@ -222,7 +230,8 @@ function startGame() {
   game.waveTransition = false;
   game.shieldActive = false;
   game.shieldTimer = 0;
-  game.upgrades = { damage: 1, fireCount: 1, speedBonus: 0, sizeBonus: 0, spread: false, pierce: false };
+  game.upgrades = { damage: 1, fireCount: 1, speedBonus: 0, sizeBonus: 0,
+    spread: false, pierce: false, homing: false, explosive: false, split: false, comboMult: 1 };
 
   player.x = canvas.width / 2;
   player.y = canvas.height / 2;
@@ -273,7 +282,7 @@ function takeDamage() {
 }
 
 function addScore(pts) {
-  const multiplier = 1 + Math.floor(game.combo / 5) * 0.5;
+  const multiplier = game.upgrades.comboMult + Math.floor(game.combo / 5) * 0.5;
   const actual = Math.round(pts * multiplier);
   game.score += actual;
   return actual;
@@ -309,9 +318,18 @@ function advanceWave() {
 function showUpgradeScreen() {
   ui.upgradeWaveLabel.textContent = `WAVE ${game.wave - 1} CLEAR!`;
 
-  const available = UPGRADE_POOL.filter(u => !u.available || u.available(game));
-  // Pick 3 non-duplicate upgrades (weighted: epic rarer)
-  const shuffled = [...available].sort(() => Math.random() - 0.5).slice(0, 3);
+  // 限定アップグレード（条件付き）をシャッフルして最大3つ
+  const limited = UPGRADE_POOL.filter(u => !u.always && u.available(game));
+  const shuffled = [...limited].sort(() => Math.random() - 0.5).slice(0, 3);
+
+  // 3つ未満なら常時フォールバックで補填
+  if (shuffled.length < 3) {
+    const always = UPGRADE_POOL.filter(u => u.always)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 3 - shuffled.length);
+    shuffled.push(...always);
+  }
+  shuffled.sort(() => Math.random() - 0.5);
 
   ui.upgradeCards.innerHTML = '';
   for (const upg of shuffled) {
@@ -379,6 +397,8 @@ function handleFlick(angle, speed, startX, startY) {
     damage: game.upgrades.damage,
     sizeBonus: game.upgrades.sizeBonus,
     pierce: game.upgrades.pierce,
+    homing: game.upgrades.homing,
+    explosive: game.upgrades.explosive,
   };
 
   // Main shot(s)
@@ -621,13 +641,17 @@ function drawWaveProgress() {
 // ── Draw active upgrade icons ──
 function drawUpgradeIcons() {
   const icons = [];
-  if (game.upgrades.damage > 1) icons.push({ icon: '⚔️', label: `×${game.upgrades.damage}` });
+  if (game.upgrades.damage > 1)   icons.push({ icon: '⚔️', label: `×${game.upgrades.damage}` });
   if (game.upgrades.fireCount > 1) icons.push({ icon: '🔫', label: `×${game.upgrades.fireCount}` });
-  if (game.upgrades.spread) icons.push({ icon: '🎯', label: '' });
-  if (game.upgrades.pierce) icons.push({ icon: '🏹', label: '' });
+  if (game.upgrades.spread)       icons.push({ icon: '🎯', label: '' });
+  if (game.upgrades.pierce)       icons.push({ icon: '🏹', label: '' });
+  if (game.upgrades.homing)       icons.push({ icon: '🎪', label: '' });
+  if (game.upgrades.explosive)    icons.push({ icon: '💥', label: '' });
+  if (game.upgrades.split)        icons.push({ icon: '✂️', label: '' });
   if (game.upgrades.speedBonus > 0) icons.push({ icon: '⚡', label: '' });
-  if (game.upgrades.sizeBonus > 0) icons.push({ icon: '💫', label: '' });
-  if (game.shieldActive) icons.push({ icon: '🛡️', label: '' });
+  if (game.upgrades.sizeBonus > 0)  icons.push({ icon: '💫', label: '' });
+  if (game.upgrades.comboMult > 1)  icons.push({ icon: '🔗', label: `×${game.upgrades.comboMult.toFixed(1)}` });
+  if (game.shieldActive)          icons.push({ icon: '🛡️', label: '' });
   if (!icons.length) return;
 
   const iconSize = 18;
@@ -699,7 +723,7 @@ function update(dt) {
   }
 
   particles.update(dt);
-  projectiles.update(dt, canvas.width, canvas.height);
+  projectiles.update(dt, canvas.width, canvas.height, game.upgrades.homing ? enemies.enemies : null);
 
   const hits = enemies.checkProjectileHits(projectiles.active, particles);
   for (const hit of hits) {
@@ -709,6 +733,14 @@ function update(dt) {
       incrementCombo();
       particles.emitScore(hit.enemy.x, hit.enemy.y - hit.enemy.radius - 10, `+${pts}`, '#ffd60a');
       Audio.enemyDeath();
+
+      // Split: spawn 2 child projectiles on kill (non-split, non-blast)
+      if (game.upgrades.split && hit.proj && !hit.proj.isSplit && !hit.isBlast) {
+        const base = Math.atan2(hit.enemy.y - player.y, hit.enemy.x - player.x);
+        const splitOpts = { damage: 1, sizeBonus: 0, pierce: false, homing: false, explosive: false, isSplit: true };
+        projectiles.fire(hit.enemy.x, hit.enemy.y, base + Math.PI / 5, 10, splitOpts);
+        projectiles.fire(hit.enemy.x, hit.enemy.y, base - Math.PI / 5, 10, splitOpts);
+      }
     } else {
       Audio.hit();
     }

@@ -284,7 +284,27 @@ class EnemyManager {
             particles.emitRing(enemy.x, enemy.y, { color: enemy.color, maxRadius: enemy.radius * 3, life: 0.4 });
           }
 
-          hits.push({ enemy, killed, score: killed ? enemy.score : 0 });
+          hits.push({ enemy, killed, score: killed ? enemy.score : 0, proj });
+
+          // Explosive: blast nearby enemies
+          if (proj.explosive) {
+            const BLAST_R = 90;
+            particles.emitRing(proj.x, proj.y, { color: '#ff6b35', maxRadius: BLAST_R, life: 0.35, lineWidth: 3 });
+            for (const other of this.enemies) {
+              if (other === enemy || other.dead) continue;
+              const bdx = other.x - proj.x, bdy = other.y - proj.y;
+              if (bdx * bdx + bdy * bdy < BLAST_R * BLAST_R) {
+                const blastKilled = other.hit(1);
+                particles.emitHit(other.x, other.y, Math.atan2(bdy, bdx), other.color);
+                if (blastKilled) {
+                  other.dead = true;
+                  particles.emitRing(other.x, other.y, { color: other.color, maxRadius: other.radius * 3, life: 0.4 });
+                }
+                hits.push({ enemy: other, killed: blastKilled, score: blastKilled ? other.score : 0, proj, isBlast: true });
+              }
+            }
+          }
+
           if (!proj.pierce) break;
         }
       }
